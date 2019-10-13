@@ -81,11 +81,16 @@ int main(int argc, char **argv)
   if (llopen(fd, flag) != 0)
     return 1;
 
-  //if (flag == TRANSMITTER)
-  //llwrite(fd, buf, BUFFER_SIZE);
+  if (flag == TRANSMITTER)
+    llwrite(fd, "ola", 4);
 
-  //if (flag == RECEIVER)
-  //llread();
+  
+  if (flag == RECEIVER)
+  {
+    char buf[255];
+    int r = llread(fd,buf);
+    printf("%d %s",r, buf);
+  }
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
