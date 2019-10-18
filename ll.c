@@ -1,68 +1,15 @@
 #include "ll.h"
 
-unsigned char BCC, C;
+/* global variables */
+// ========================================================= //
+
+unsigned char BCC, C = 0x00;
 int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write;
 char *write_buffer;
+char expected_C_value = 0x85;
 
-int send_w()
-{
-    int bytes_written;
-    unsigned char iFrame[BUFFER_SIZE];
-
-    // fill the frame
-    printf("IFRAME:\n");
-    iFrame[0] = FLAG;
-    printf("IFRAME: %x \n", iFrame[0]);
-    iFrame[1] = A;
-    printf("IFRAME: %x \n", iFrame[1]);
-    iFrame[2] = C;
-    printf("IFRAME: %x \n", iFrame[2]);
-
-    iFrame[3] = A ^ C;
-    printf("IFRAME: %x \n", iFrame[3]);
-
-    unsigned char BCC2 = write_buffer[0];
-    for (int i = 4; i < bytes_to_write + 4; i++)
-    {
-        iFrame[i] = write_buffer[i - 4];
-        printf("IFRAME %d: %c \n", i, iFrame[i]);
-        if (i > 4)
-        {
-            BCC2 = BCC2 ^ iFrame[i];
-        }
-    }
-
-    iFrame[bytes_to_write + 4] = BCC2;
-    printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
-    iFrame[bytes_to_write + 5] = FLAG;
-    printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
-
-    bytes_written = write(fd, iFrame, bytes_to_write + 6);
-    printf("%d bytes sent.\n\n", bytes_written);
-    return bytes_written;
-}
-
-void llwrite_alarm_handler()
-{
-    if (!alarm_flag)
-    {
-        return;
-    }
-
-    if (conn_attempts < 3)
-    {
-        printf("Unsuccessful WRITE! New attempt... \n");
-        send_w();
-        alarm(3);
-        conn_attempts++;
-        printf("Awaiting acknowledgment...\n\n");
-    }
-    else
-    {
-        printf("Connection Timed Out!\n");
-        exit(1);
-    }
-}
+/* protocol */
+// ========================================================= //
 
 int llopen(int port, int flag)
 {
@@ -71,11 +18,10 @@ int llopen(int port, int flag)
     int i = 1;
     char buf[BUFFER_SIZE];
     unsigned char received_A_value, expected_C_value;
-    fd = port; //TODO: perguntar ao prof o que acha de extern
-
+    fd = port;
     (void)signal(SIGALRM, llopen_alarm_handler);
 
-    /* 
+    /*
         First connection attempt
     */
 
@@ -194,11 +140,15 @@ int llopen(int port, int flag)
 
 int llwrite(int fdesc, char *buffer, int length)
 {
-
     bytes_to_write = length;
     write_buffer = buffer;
     fd = fdesc;
-    C = 0;
+
+    states_t state = START;
+    char rr_buf[BUFFER_SIZE];
+    char received_A_value;
+
+    //TODO N(s)
 
     (void)signal(SIGALRM, llwrite_alarm_handler);
     alarm_flag = 1;
@@ -207,11 +157,6 @@ int llwrite(int fdesc, char *buffer, int length)
     send_w();
     alarm(3);
 
-    states_t state = START;
-    //int bytes_read;
-    char rr_buf[BUFFER_SIZE];
-    char received_A_value, expected_C_value = 0x85;
-
     while (state != STOP_SM)
     {
         read(fd, rr_buf, 1);
@@ -219,7 +164,7 @@ int llwrite(int fdesc, char *buffer, int length)
         switch (state)
         {
         case START:
-        printf("start\n");
+            printf("start\n");
             if (*rr_buf == FLAG)
             {
                 state++;
@@ -244,7 +189,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case A_RCV:
-                printf("A\n");
+            printf("A\n");
 
             if (*rr_buf == FLAG)
             {
@@ -261,7 +206,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case C_RCV:
-                printf("c\n");
+            printf("c\n");
 
             if (*rr_buf == FLAG)
             {
@@ -278,14 +223,15 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case BCC_OK:
-                printf("BCC\n");
+            printf("BCC\n");
 
             if (*rr_buf == FLAG)
             {
                 state = STOP_SM;
-
                 alarm_flag = 0;
-                printf("\nReceiver ready.\n");
+                C ^= (1 << 6);
+                expected_C_value ^= (1 << 7);
+                printf("\nReceiver ready. C = %c\n", C);
             }
             else
             {
@@ -306,17 +252,17 @@ int llwrite(int fdesc, char *buffer, int length)
 
 int llread(int fd, char *buffer)
 {
-
     states_t state = START;
     int bytes_read;
     char rr_buf[BUFFER_SIZE];
-    unsigned char received_A_value = 0x03, expected_C_value = 0x00, BCC2_calc;
+    unsigned char received_A_value = 0x03, BCC2_calc;
     int dn = 0;
 
     while (state != STOP_SM)
     {
         bytes_read = read(fd, rr_buf, 1);
         printf(" # read '%x', %d byte.\n", *rr_buf, bytes_read);
+        char received_C_value;
         switch (state)
         {
         case START:
@@ -348,8 +294,9 @@ int llread(int fd, char *buffer)
             {
                 state--;
             }
-            else if (*rr_buf == expected_C_value)
+            else if (*rr_buf == 0x00 || *rr_buf == 0x40)
             {
+                received_C_value = *rr_buf;
                 state++;
             }
             else
@@ -364,7 +311,7 @@ int llread(int fd, char *buffer)
             {
                 state = FLAG_RCV;
             }
-            else if ((received_A_value ^ expected_C_value) == *rr_buf)
+            else if ((received_A_value ^ received_C_value) == *rr_buf)
             {
                 state++;
             }
@@ -403,11 +350,18 @@ int llread(int fd, char *buffer)
             printf("bcc2\n");
             if (*rr_buf == FLAG)
             {
+                if (received_C_value == 0x00)
+                {
+                    C = 0x85;
+                }
+                else if (received_C_value == 0x40)
+                {
+                    C = 0x05;
+                }
                 state = STOP_SM;
             }
             else
             {
-
                 buffer[dn++] = BCC2_calc;
 
                 if (*rr_buf != BCC2_calc)
@@ -424,12 +378,85 @@ int llread(int fd, char *buffer)
         }
     }
 
-    C = 0x85;
     send();
 
     printf("%s\n", buffer);
 
     return dn;
+}
+
+/* utility functions */
+// ========================================================= //
+
+void send()
+{
+    int bytes_written;
+    unsigned char frame[FRAME_SIZE];
+    BCC = A ^ C;
+
+    // fill the frame
+    frame[0] = FLAG;
+    frame[1] = A;
+    frame[2] = C;
+    frame[3] = BCC;
+    frame[4] = FLAG;
+
+    bytes_written = write(fd, frame, FRAME_SIZE);
+    printf("%d bytes sent.\n\n", bytes_written);
+}
+
+int send_w()
+{
+    int bytes_written;
+    unsigned char iFrame[BUFFER_SIZE];
+
+    // fill the iframe
+    printf("IFRAME:\n");
+    iFrame[0] = FLAG;
+    iFrame[1] = A;
+    iFrame[2] = C;
+    iFrame[3] = A ^ C;
+
+    unsigned char BCC2 = write_buffer[0];
+    for (int i = 4; i < bytes_to_write + 4; i++)
+    {
+        iFrame[i] = write_buffer[i - 4];
+        if (i > 4)
+        {
+            BCC2 = BCC2 ^ iFrame[i];
+        }
+    }
+
+    iFrame[bytes_to_write + 4] = BCC2;
+    printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
+    iFrame[bytes_to_write + 5] = FLAG;
+    printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
+
+    bytes_written = write(fd, iFrame, bytes_to_write + 6);
+    printf("%d bytes sent.\n\n", bytes_written);
+    return bytes_written;
+}
+
+void llwrite_alarm_handler()
+{
+    if (!alarm_flag)
+    {
+        return;
+    }
+
+    if (conn_attempts < 3)
+    {
+        printf("Unsuccessful WRITE! New attempt... \n");
+        send_w();
+        alarm(3);
+        conn_attempts++;
+        printf("Awaiting acknowledgment...\n\n");
+    }
+    else
+    {
+        printf("Connection Timed Out!\n");
+        exit(1);
+    }
 }
 
 void llopen_alarm_handler()
@@ -452,20 +479,4 @@ void llopen_alarm_handler()
         printf("Connection Timed Out!\n");
         exit(1);
     }
-}
-
-void send()
-{
-    int bytes_written;
-    unsigned char frame[FRAME_SIZE];
-    BCC = A^C;
-    // fill the frame
-    frame[0] = FLAG;
-    frame[1] = A;
-    frame[2] = C;
-    frame[3] = BCC;
-    frame[4] = FLAG;
-
-    bytes_written = write(fd, frame, FRAME_SIZE);
-    printf("%d bytes sent.\n\n", bytes_written);
 }

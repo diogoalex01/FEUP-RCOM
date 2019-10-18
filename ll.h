@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,6 +35,9 @@ typedef enum
 /* prototypes */
 // ========================================================= //
 
+/* protocol */
+// ========================================================= //
+
 /**
  * @brief 
  * 
@@ -52,7 +57,6 @@ int llopen(int port, int flag);
  */
 int llwrite(int fd, char *buffer, int length);
 
-
 /**
  * @brief
  * @param fd 
@@ -61,14 +65,30 @@ int llwrite(int fd, char *buffer, int length);
  */
 int llread(int fd, char *buffer);
 
-/**
- * @brief Handler function for alarm signal
- * 
- */
-void llopen_alarm_handler();
+/* utility functions */
+// ========================================================= //
 
 /**
  * @brief 
  * 
  */
 void send();
+
+/**
+ * @brief 
+ * 
+ * @return int 
+ */
+int send_w();
+
+/**
+ * @brief 
+ * 
+ */
+void llwrite_alarm_handler();
+
+/**
+ * @brief 
+ * 
+ */
+void llopen_alarm_handler();
