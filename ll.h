@@ -15,6 +15,8 @@
 #define BUFFER_SIZE 255
 #define READ_BUFFER_SIZE 20
 #define FLAG 0x7E
+#define ESCAPE 0x7D
+#define OCT 0x20
 #define A 0x03
 
 /* enums */
@@ -29,7 +31,8 @@ typedef enum
   BCC_OK,
   STOP_SM,
   DATA,
-  BCC2_OK
+  BCC2_OK,
+  STUFF
 } states_t;
 
 /* prototypes */
