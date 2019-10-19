@@ -82,7 +82,7 @@ int main(int argc, char **argv)
     return 1;
 
   if (flag == TRANSMITTER)
-    llwrite(fd, "ola", 4);
+    llwrite(fd,"jonas",20); // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
 
   if (flag == RECEIVER)
   {

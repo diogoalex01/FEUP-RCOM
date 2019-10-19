@@ -142,6 +142,7 @@ int llopen(int port, int flag)
 int llwrite(int fdesc, char *buffer, int length)
 {
     bytes_to_write = length;
+    printf("%d\n", bytes_to_write);
     write_buffer = buffer;
     fd = fdesc;
 
@@ -260,15 +261,13 @@ int llwrite(int fdesc, char *buffer, int length)
 int llread(int fd, char *buffer)
 {
     states_t state = START;
-    int bytes_read;
     unsigned char received_A_value = 0x03, BCC2_calc;
-    char rr_buf[BUFFER_SIZE];
+    unsigned char rr_buf[BUFFER_SIZE];
     int dn = 0;
 
     while (state != STOP_SM)
     {
-        bytes_read = read(fd, rr_buf, 1);
-        printf(" # read '%x', %d byte.\n", *rr_buf, bytes_read);
+        read(fd, rr_buf, 1);
         switch (state)
         {
         case START:
@@ -330,6 +329,11 @@ int llread(int fd, char *buffer)
 
         case BCC_OK:
             printf("bcc1_ok\n");
+            if (*rr_buf == ESCAPE)
+            {
+                state = STUFF;
+                break;
+            }
             buffer[dn++] = *rr_buf;
             BCC2_calc = *rr_buf;
             state = DATA;
@@ -374,6 +378,13 @@ int llread(int fd, char *buffer)
             else
             {
                 buffer[dn++] = BCC2_calc;
+                BCC2_calc = 0;
+
+                if (*rr_buf == ESCAPE)
+                {
+                    state = STUFF;
+                    break;
+                }
 
                 if (*rr_buf != BCC2_calc)
                 {
@@ -385,7 +396,8 @@ int llread(int fd, char *buffer)
             break;
 
         case STUFF:
-            if (*rr_buf == 0x5D) // 0x5D = ESCAPE ^ OCT
+            printf("stuff\n");
+            if (*rr_buf == 0x5d) // 0x5D = ESCAPE ^ OCT
             {
                 if (ESCAPE == BCC2_calc)
                 {
@@ -398,7 +410,7 @@ int llread(int fd, char *buffer)
                     state = DATA;
                 }
             }
-            else if (*rr_buf == 0x5E) // 0x5E = FLAG ^ OCT
+            else if (*rr_buf == 0x5e) // 0x5E = FLAG ^ OCT
             {
                 if (FLAG == BCC2_calc)
                 {
@@ -421,6 +433,8 @@ int llread(int fd, char *buffer)
             printf("default \n");
             break;
         }
+        
+        printf(" # read '%x', bbc2 = %x.\n", *rr_buf, BCC2_calc);
     }
 
     send();
@@ -452,7 +466,7 @@ void send()
 
 int send_w()
 {
-    int bytes_written;
+    int bytes_written, write_index = 0;
     unsigned char iFrame[BUFFER_SIZE], BCC2, stuff;
 
     // fill the frame
@@ -469,20 +483,23 @@ int send_w()
     BCC2 = write_buffer[0];
 
     printf("Bytes to write %d\n", bytes_to_write);
-    for (int i = 4; i < bytes_to_write + 4; i++)
+    for (int i = 4; i < bytes_to_write + 4; i++, write_index++)
     {
-        stuff = write_buffer[i - 4];
+        stuff = write_buffer[write_index];
         //byte stuffing
-        if (write_buffer[i - 4] == FLAG || write_buffer[i - 4] == ESCAPE)
+        if (write_buffer[write_index] == FLAG || write_buffer[write_index] == ESCAPE)
         {
             iFrame[i] = ESCAPE;
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             i++;
             iFrame[i] = stuff ^ OCT;
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             bytes_to_write++;
         }
         else
         {
-            iFrame[i] = write_buffer[i - 4];
+            iFrame[i] = write_buffer[write_index];
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
         }
 
         if (i > 4)

@@ -1,14 +1,14 @@
 .PHONY: all clean
-all: writenoncanonical
+all: application
 
 CFLAGS = -Wall -Wextra -Werror
-OBJECTS = writenoncanonical.o ll.o
+OBJECTS = application.o ll.o
 
-writenoncanonical: $(OBJECTS)
-	gcc $(CFLAGS) -pedantic $(OBJECTS) -o writenoncanonical
+application: $(OBJECTS)
+	gcc $(CFLAGS) -pedantic $(OBJECTS) -o application
 
-writenoncanonical.o = ll.h
+application.o = ll.h
 ll.o = ll.h
 
 clean:
-	rm -f writenoncanonical $(OBJECTS)
+	rm -f application $(OBJECTS)
