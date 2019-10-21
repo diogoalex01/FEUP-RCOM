@@ -78,17 +78,31 @@ int main(int argc, char **argv)
   if (strcmp("transmitter", argv[2]) == 0)
     flag = TRANSMITTER;
 
-  if (llopen(fd, flag) != 0)
+  if (llopen(fd, flag) == 0)
     return 1;
 
   if (flag == TRANSMITTER)
-    llwrite(fd,"jonas",20); // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
-
+  {
+    if (llwrite(fd, "}ola", 5) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
+    {
+      return 1;
+    }
+    if (llwrite(fd, "jonas", 20) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
+    {
+      return 1;
+    }
+  }
   if (flag == RECEIVER)
   {
     char buf[255];
-    int r = llread(fd, buf);
-    printf("%d %s", r, buf);
+    if (llread(fd, buf) < 0)
+    {
+      return 1;
+    }
+    if (llread(fd, buf) < 0)
+    {
+      return 1;
+    }
   }
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
