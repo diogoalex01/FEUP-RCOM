@@ -4,7 +4,7 @@
 // ========================================================= //
 
 unsigned char BCC, C = 0x00, expected_C_value = 0x85;
-int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write, opened = 0, written = 0, last_C_received = 0x40;
+int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write, return_value = 0, written = 0, last_C_received = 0x40, is_transmitter;
 char *write_buffer;
 
 /* protocol */
@@ -18,7 +18,7 @@ int llopen(int port, int flag)
     char buf[BUFFER_SIZE];
     unsigned char received_A_value, expected_C_value;
     fd = port;
-    opened = fd;
+    return_value = fd;
     (void)signal(SIGALRM, llopen_alarm_handler);
 
     /*
@@ -33,11 +33,13 @@ int llopen(int port, int flag)
         send();
         alarm(3); // 3s alarm
         printf("Awaiting acknowledgment...\n\n");
+        is_transmitter = 1;
     }
     else
     {
         C = 0x07;
         expected_C_value = 0x03;
+        is_transmitter = 0;
     }
 
     BCC = A ^ C;
@@ -106,7 +108,7 @@ int llopen(int port, int flag)
             if (*buf == FLAG)
             {
                 state = STOP_SM;
-                if (flag == TRANSMITTER)
+                if (is_transmitter)
                 {
                     alarm_flag = 0;
                     printf("\nAcknowledgment received.\n");
@@ -128,7 +130,7 @@ int llopen(int port, int flag)
         }
     }
 
-    if (flag == RECEIVER)
+    if (!is_transmitter)
     {
         printf("Sending acknowledgment... ");
         send();
@@ -137,7 +139,7 @@ int llopen(int port, int flag)
 
     C = 0x00;
 
-    return opened;
+    return return_value;
 }
 
 int llwrite(int fdesc, char *buffer, int length)
@@ -171,7 +173,7 @@ int llwrite(int fdesc, char *buffer, int length)
     conn_attempts = 0;
 
     written = send_w();
-    alarm(10);
+    alarm(3);
 
     while (state != STOP_SM && conn_attempts < 3)
     {
@@ -498,6 +500,126 @@ int llread(int fd, char *buffer)
     return dn;
 }
 
+int llclose(int fd)
+{
+    states_t state = START;
+    unsigned char buf[BUFFER_SIZE], received_A_value;
+    C = DISC;
+    (void)signal(SIGALRM, llopen_alarm_handler);
+    alarm_flag = 1;
+    conn_attempts = 0;
+    return_value = fd;
+
+    if (is_transmitter)
+    {
+        send();
+        alarm(3);
+    }
+
+    while (state != STOP_SM)
+    {
+        read(fd, buf, 1);
+
+        switch (state)
+        {
+        case START:
+            if (*buf == FLAG)
+            {
+                state++;
+            }
+            break;
+
+        case FLAG_RCV:
+            if (*buf == FLAG)
+            {
+                break;
+            }
+            else if (*buf == A)
+            {
+                received_A_value = *buf;
+                state++;
+            }
+            else
+            {
+                state--;
+            }
+            break;
+
+        case A_RCV:
+            if (*buf == FLAG)
+            {
+                state--;
+            }
+            else if (*buf == C)
+            {
+                state++;
+            }
+            else
+            {
+                state = START;
+            }
+            break;
+
+        case C_RCV:
+            printf("buf: %x -- A_r: %x -- C_e: %x\n", *buf, received_A_value, C);
+            if (*buf == FLAG)
+            {
+                state = FLAG_RCV;
+            }
+            else if ((received_A_value ^ C) == *buf)
+            {
+                state++;
+            }
+            else
+            {
+                state = START;
+            }
+            break;
+
+        case BCC_OK:
+            if (*buf == FLAG)
+            {
+                state = STOP_SM;
+                if (is_transmitter)
+                {
+                    alarm_flag = 0;
+                    printf("\nTransmitter received DISC sending UA\n");
+                    sleep(9);
+                    printf("\nWoke up\n");
+
+                    C = UA;
+                    send();
+                }
+                else if (!is_transmitter)
+                {
+                    if (C != UA)
+                    {
+                        alarm(3);
+                        send();
+                        C = UA;
+                        state = START;
+                        printf("\nReceiver received DISC sending DISC\n");
+                        break;
+                    }
+                    alarm_flag = 0;
+                    printf("\nReceiver received UA, closing serial port\n");
+                }
+            }
+            else
+            {
+                state = START;
+            }
+            break;
+
+        default:
+            printf("default \n");
+            break;
+        }
+    }
+
+    return return_value;
+}
+
 /* utility functions */
 // ========================================================= //
 
@@ -550,7 +672,6 @@ int send_w()
             iFrame[i] = stuff ^ OCT;
             printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             bytes_to_write++;
-            
         }
         else
         {
@@ -600,7 +721,7 @@ void llwrite_alarm_handler()
     {
         printf("Unsuccessful WRITE! New attempt... \n");
         send_w();
-        alarm(10);
+        alarm(3);
         conn_attempts++;
         printf("Awaiting acknowledgment...\n\n");
     }
@@ -630,7 +751,7 @@ void llopen_alarm_handler()
     else
     {
         printf("Connection Timed Out!\n");
-        opened = -1;
+        return_value = -1;
         exit(1);
     }
 }

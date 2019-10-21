@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 
   if (flag == TRANSMITTER)
   {
-    if (llwrite(fd, "}ola", 5) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
+    if (llwrite(fd, "~~}ola}~~", 20) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
     {
       return 1;
     }
@@ -92,6 +92,7 @@ int main(int argc, char **argv)
       return 1;
     }
   }
+
   if (flag == RECEIVER)
   {
     char buf[255];
@@ -105,6 +106,11 @@ int main(int argc, char **argv)
     }
   }
 
+  if (llclose(fd) < 0)
+  {
+    return 1;
+  }
+
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
     perror("tcsetattr");
@@ -112,5 +118,6 @@ int main(int argc, char **argv)
   }
 
   close(fd);
+  
   return 0;
 }

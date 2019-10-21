@@ -15,9 +15,13 @@
 #define BUFFER_SIZE 255
 #define READ_BUFFER_SIZE 20
 #define FLAG 0x7E
+#define A 0x03
+#define DISC 0x0B
+#define SET 0x03
+#define UA 0x07
 #define ESCAPE 0x7D
 #define OCT 0x20
-#define A 0x03
+
 
 /* enums */
 // ========================================================= //
@@ -67,6 +71,14 @@ int llwrite(int fd, char *buffer, int length);
  * @return int
  */
 int llread(int fd, char *buffer);
+
+/**
+ * @brief 
+ * 
+ * @param fd 
+ * @return int 
+ */
+int llclose(int fd);
 
 /* utility functions */
 // ========================================================= //
