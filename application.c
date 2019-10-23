@@ -1,16 +1,15 @@
 /*Non-Canonical Input Processing*/
-#include <sys/types.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <termios.h>
-#include "ll.h"
+
+#include "application.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+
+int used_bytes = 0;
+FILE *file;
 
 int main(int argc, char **argv)
 {
@@ -81,29 +80,22 @@ int main(int argc, char **argv)
   if (llopen(fd, flag) == 0)
     return 1;
 
+  struct stat file_info;
+  char *filename;
+
   if (flag == TRANSMITTER)
   {
-    if (llwrite(fd, "~~}ola}~~", 20) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
-    {
-      return 1;
-    }
-    if (llwrite(fd, "jonas", 20) < 0) // 0x7e 0x63 0x63 0x7d => 0x7d 0x5e 0x63 0x63 0x7d 0x5d \0
-    {
-      return 1;
-    }
+    filename = "pinguim.gif";
+    file = fopen(filename, "rb");
+    stat(filename, &file_info);
+    start_writting(fd, &file_info, filename);
+    //write_data(fd);
+    fclose(file);
   }
 
   if (flag == RECEIVER)
   {
-    char buf[255];
-    if (llread(fd, buf) < 0)
-    {
-      return 1;
-    }
-    if (llread(fd, buf) < 0)
-    {
-      return 1;
-    }
+    start_reading(fd);
   }
 
   if (llclose(fd) < 0)
@@ -118,6 +110,101 @@ int main(int argc, char **argv)
   }
 
   close(fd);
+
+  return 0;
+}
+
+int start_writting(int fd, struct stat *file_info, char *filename)
+{
+  off_t size = file_info->st_size;
+  char control_packet[BUFFER_SIZE];
+  int n_packets = ceil(size / sizeof(char));
+
+  control_packet[0] = START; // start
+  control_packet[1] = 0;     // type => size of file
+
+  used_bytes = size / MAX_NUM_BYTE; //
+  printf("UB: %ld\n", used_bytes);
   
+  for (int i = 0; i < used_bytes; i++)
+  {
+    control_packet[3 + i] = MAX_NUM_BYTE; // value
+  }
+
+  if (size % MAX_NUM_BYTE != 0)
+  {
+    control_packet[3 + used_bytes] = size % MAX_NUM_BYTE; // value
+    used_bytes++;
+  }
+  
+  printf("UB: %ld\n", used_bytes);
+  
+  control_packet[2] = used_bytes; // length
+
+  llwrite(fd, control_packet, used_bytes + 3);
+
+  write_data(fd);
+  return 0;
+}
+
+int start_reading(int fd)
+{
+  off_t sizecas;
+  unsigned char buf[BUFFER_SIZE];
+  llread(fd, buf);
+
+  if (buf[0] == START)
+  {
+    if (buf[1] == 0) // types => size of file
+    {
+      sizecas = 0;
+      for (int i = 3; i < 3 + buf[2]; i++)
+      {
+        sizecas += buf[i];
+      }
+      printf("Size = %ld\n",sizecas);
+      read_data(fd, sizecas);
+    }
+  }
+  else
+  {
+    return 1;
+  }
+
+  return 0;
+}
+
+int read_data(int fd, off_t size)
+{
+  off_t len = size;
+  char buf[BUFFER_SIZE];
+  int read; // bytes read
+  FILE *file = fopen("pinguimCopia.gif", "a");
+
+  while (len > 0)
+  {
+    read = llread(fd, buf);
+    fwrite(buf, sizeof(char), read, file);
+    len -= read;
+  }
+
+  fclose(file);
+
+  return 0;
+}
+
+int write_data(int fd)
+{
+  char data_packet[BUFFER_SIZE];
+  char buf[BUFFER_SIZE];
+  //data_packet[0] = 1; // data packet
+  printf("used bytes mano : %ld\n", used_bytes);
+  for (unsigned int i = 0; i < used_bytes; i++)
+  {
+    fread(buf, sizeof(char), BUFFER_SIZE, file);
+    printf("%d:\n", i);
+    llwrite(fd, buf, BUFFER_SIZE);
+  }
+
   return 0;
 }

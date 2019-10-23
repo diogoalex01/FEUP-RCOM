@@ -12,7 +12,7 @@
 #define TRANSMITTER 1
 
 #define FRAME_SIZE 5
-#define BUFFER_SIZE 255
+#define BUFFER_SIZE 256
 #define READ_BUFFER_SIZE 20
 #define FLAG 0x7E
 #define A 0x03
@@ -21,6 +21,7 @@
 #define UA 0x07
 #define ESCAPE 0x7D
 #define OCT 0x20
+#define MAX_NUM_BYTE 255
 
 
 /* enums */
