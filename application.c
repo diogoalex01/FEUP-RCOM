@@ -65,10 +65,18 @@ int main(int argc, char **argv)
 
   // 0 - RECEIVER, 1 - TRANSMITTER
   if (strcmp("receiver", argv[2]) == 0)
+  {
     flag = RECEIVER;
-
-  if (strcmp("transmitter", argv[2]) == 0)
+  }
+  else if (strcmp("transmitter", argv[2]) == 0)
+  {
     flag = TRANSMITTER;
+  }
+  else
+  {
+    printf("**Not a valid role!**\n");
+    return 1;
+  }
 
   if (llopen(fd, flag) == 0)
     return 1;
@@ -82,7 +90,6 @@ int main(int argc, char **argv)
     file = fopen(filename, "rb");
     stat(filename, &file_info);
     start_writting(fd, &file_info);
-    //write_data(fd);
     fclose(file);
   }
 
@@ -111,7 +118,7 @@ int main(int argc, char **argv)
 int start_writting(int fd, struct stat *file_info)
 {
   off_t size = file_info->st_size;
-  char control_packet[BUFFER_SIZE];
+  unsigned char control_packet[BUFFER_SIZE];
   //int n_packets = ceil(size / sizeof(char));
 
   control_packet[0] = START; // start
@@ -123,6 +130,7 @@ int start_writting(int fd, struct stat *file_info)
   for (; i < control_packet[2]; i++)
   {
     control_packet[3 + i] = (size >> (i * 8)) & 0xFF; // from the LSB to MSB
+    printf("size e: %x\n", control_packet[3 + i]);
   }
 
   int used_bytes = size / MAX_DATA;
@@ -139,7 +147,7 @@ int start_writting(int fd, struct stat *file_info)
 
 int start_reading(int fd)
 {
-  char buf[BUFFER_SIZE];
+  unsigned char buf[BUFFER_SIZE];
   off_t file_size = 0;
   //char *file_name;
 
@@ -152,14 +160,14 @@ int start_reading(int fd)
 
       printf("buf 2 : %d\n", buf[2]);
 
-      /*for (int i = 0; i < buf[2]; i++)
-      { 
-        printf("buf[3+%d]: %x\n", i,buf[3+i]);
+      for (int i = 0; i < buf[2]; i++)
+      {
+        printf("buf[3+%d]: %x\n", i, buf[3 + i]);
         file_size |= buf[3 + i] << (i * 8); // from the LSB to MSB
         printf("file_size : %ld\n", file_size);
-      }*/
-      file_size = 0xd8;       // from the LSB to MSB
-      file_size |= 0x2a << 8; // from the LSB to MSB
+      }
+      //file_size = 0xd8;       // from the LSB to MSB
+      //file_size |= 0x2a << 8; // from the LSB to MSB
 
       printf("file_size : %ld\n", file_size);
       int used_bytes = file_size / MAX_DATA;
@@ -186,12 +194,11 @@ int read_data(int fd, int cycles)
   FILE *file = fopen("pinguimCopia.gif", "a");
   int counter = 0;
 
-
   for (int i = 0; i < 2 * cycles; i++)
   {
     printf("reading\n");
     llread(fd, buf);
-    printf("cycles = %d buf[1]= %d counter = %d\n",cycles, buf[1], counter % 255);
+    printf("cycles = %d buf[1]= %d counter = %d\n", cycles, buf[1], counter % 255);
     number_bytes = 255 * buf[2] + buf[3];
 
     printf("L2 %d \t L1 %d\t number of bytes %d\n", buf[2], buf[3], number_bytes);
@@ -215,7 +222,7 @@ int read_data(int fd, int cycles)
 int write_data(int fd, int used_bytes)
 {
   unsigned char data_packet[BUFFER_SIZE];
-  char buf[MAX_DATA / 2];
+  unsigned char buf[MAX_DATA / 2];
 
   for (int i = 0; i < 2 * used_bytes; i++)
   {

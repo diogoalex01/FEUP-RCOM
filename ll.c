@@ -5,7 +5,7 @@
 
 unsigned char BCC, C = 0x00, expected_C_value = 0x85;
 int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write, return_value = 0, written = 0, last_C_received = 0x40, is_transmitter;
-char *write_buffer;
+unsigned char *write_buffer;
 
 /* protocol */
 // ========================================================= //
@@ -15,7 +15,7 @@ int llopen(int port, int flag)
     states_t state = START;
     int bytes_read;
     //int i = 1;
-    char buf[BUFFER_SIZE];
+    unsigned char buf[BUFFER_SIZE];
     unsigned char received_A_value, expected_C_value;
     fd = port;
     return_value = fd;
@@ -258,6 +258,7 @@ int llwrite(int fdesc, char *buffer, int length)
                     state = START;
                     written = send_w();
                     alarm(3);
+                    sleep(2);
 
                     //printf("REJ received, resending I frame... C = %c\n", C);
                 }
@@ -721,10 +722,10 @@ int send_w()
         if (write_buffer[write_index] == FLAG || write_buffer[write_index] == ESCAPE)
         {
             iFrame[i] = ESCAPE;
-            //printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             i++;
             iFrame[i] = stuff ^ OCT;
-            //printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             bytes_to_write++;
         }
         else
@@ -742,14 +743,14 @@ int send_w()
         }
     }
 
-    if (BCC2 == FLAG)
+    if (BCC2 == FLAG || BCC2 == ESCAPE)
     {
         iFrame[bytes_to_write + 4] = ESCAPE;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
-        iFrame[bytes_to_write + 5] = FLAG ^ OCT;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
+        iFrame[bytes_to_write + 5] = BCC2 ^ OCT;
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
         iFrame[bytes_to_write + 6] = FLAG;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 6]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 6]);
     }
     else
     {
