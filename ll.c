@@ -29,10 +29,10 @@ int llopen(int port, int flag)
     {
         C = 0x03;
         expected_C_value = 0x07;
-        //printf("Sending set-up frame... \n");
+        printf("Sending set-up frame... \n");
         send();
         alarm(3); // 3s alarm
-        //printf("Awaiting acknowledgment...\n\n");
+        printf("Awaiting acknowledgment...\n\n");
         is_transmitter = 1;
     }
     else
@@ -47,7 +47,7 @@ int llopen(int port, int flag)
     while (state != STOP_SM)
     {
         bytes_read = read(port, buf, 1);
-        //printf("%d: read '%x', %d byte.\n", i++, *buf, bytes_read);
+        printf("%d: read '%x', %d byte.\n", i++, *buf, bytes_read);
         switch (state)
         {
         case START:
@@ -89,7 +89,7 @@ int llopen(int port, int flag)
             break;
 
         case C_RCV:
-            //printf("buf: %x -- A_r: %x -- C_e: %x\n", *buf, received_A_value, expected_C_value);
+            printf("buf: %x -- A_r: %x -- C_e: %x\n", *buf, received_A_value, expected_C_value);
             if (*buf == FLAG)
             {
                 state = FLAG_RCV;
@@ -111,11 +111,11 @@ int llopen(int port, int flag)
                 if (is_transmitter)
                 {
                     alarm_flag = 0;
-                    //printf("\nAcknowledgment received.\n");
+                    printf("\nAcknowledgment received.\n");
                 }
                 else
                 {
-                    //printf("\nSet-up frame received.\n");
+                    printf("\nSet-up frame received.\n");
                 }
             }
             else
@@ -125,16 +125,16 @@ int llopen(int port, int flag)
             break;
 
         default:
-            //printf("default \n");
+            printf("default \n");
             break;
         }
     }
 
     if (!is_transmitter)
     {
-        //printf("Sending acknowledgment... ");
+        printf("Sending acknowledgment... ");
         send();
-        sleep(1);
+        //sleep(1);
     }
 
     C = 0x00;
@@ -145,7 +145,7 @@ int llopen(int port, int flag)
 int llwrite(int fdesc, char *buffer, int length)
 {
     bytes_to_write = length;
-    //printf("%d\n", bytes_to_write);
+    printf("%d\n", bytes_to_write);
     write_buffer = buffer;
     fd = fdesc;
 
@@ -178,11 +178,11 @@ int llwrite(int fdesc, char *buffer, int length)
     while (state != STOP_SM && conn_attempts < 3)
     {
         read(fd, rr_buf, 1);
-        //printf("Buffer %x\n", *rr_buf);
+        printf("Buffer %x\n", *rr_buf);
         switch (state)
         {
         case START:
-            //printf("start\n");
+            printf("start\n");
             if (*rr_buf == FLAG)
             {
                 state++;
@@ -190,7 +190,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case FLAG_RCV:
-            //printf("fl  \n");
+            printf("fl  \n");
             if (*rr_buf == FLAG)
             {
                 break;
@@ -207,7 +207,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case A_RCV:
-            //printf("A\n");
+            printf("A\n");
             if (*rr_buf == FLAG)
             {
                 state--;
@@ -224,7 +224,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case C_RCV:
-            //printf("c\n");
+            printf("c\n");
 
             if (*rr_buf == FLAG)
             {
@@ -241,7 +241,7 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         case BCC_OK:
-            //printf("BCC\n");
+            printf("BCC\n");
 
             if (*rr_buf == FLAG)
             {
@@ -250,14 +250,14 @@ int llwrite(int fdesc, char *buffer, int length)
                     state = STOP_SM;
                     alarm_flag = 0;
                     C ^= (1 << 6);
-                    //printf("\nReceiver ready. C = %c\n", C);
+                    printf("\nReceiver ready. C = %c\n", C);
                 }
                 else if (received_C_value == REJ)
                 {
                     state = START;
                     written = send_w();
                     alarm(3);
-                    //printf("REJ received, resending I frame\n");
+                    printf("REJ received, resending I frame\n");
                 }
             }
             else
@@ -267,12 +267,12 @@ int llwrite(int fdesc, char *buffer, int length)
             break;
 
         default:
-            //printf("default \n");
+            printf("default \n");
             break;
         }
     }
 
-    sleep(2);
+    //sleep(1);
 
     return written;
 }
@@ -299,15 +299,18 @@ int llread(int fd, char *buffer)
         RR = 0x00;
         REJ = 0x00;
     }
-
+    int rr_rec = 0;
     while (state != STOP_SM)
     {
+
         read(fd, rr_buf, 1);
-        //printf(" # read '%x', bbc2 = %x.\n", *rr_buf, BCC2_calc);
+        printf(" # read '%x', bbc2 = %x.\n", *rr_buf, BCC2_calc);
         switch (state)
         {
         case START:
-            //printf("start\n");
+
+            printf("start\n");
+            BCC2_calc = 0;
             if (*rr_buf == FLAG)
             {
                 state++;
@@ -315,10 +318,12 @@ int llread(int fd, char *buffer)
             break;
 
         case FLAG_RCV:
-            //printf("flag\n");
+            BCC2_calc = 0;
+            dn = 0;
+            printf("flag\n");
             if (*rr_buf == FLAG)
             {
-                break;
+                state = FLAG_RCV;
             }
             else if (*rr_buf == A)
             {
@@ -327,39 +332,66 @@ int llread(int fd, char *buffer)
             }
             else
             {
-                state--;
-            }
-            break;
-
-        case A_RCV:
-            //printf("A_rcv\n");
-            //printf("C is %x and last is : %x\n", C, last_C_received);
-            if (*rr_buf == FLAG)
-            {
-                state--;
-            }
-            else if (*rr_buf == C && last_C_received != C)
-            {
-                last_C_received = C;
-                //printf("last is : %x\n", last_C_received);
-                state++;
-            }
-            else
-            {
-                //printf("REJ\n");
+                state = START;
                 store_c = C;
                 C = REJ;
                 send();
                 C = store_c;
+                printf("\n SENDING REJ\n");
+            }
+            break;
+
+        case A_RCV:
+            printf("A_rcv\n");
+            printf("C is %x and last is : %x\n", C, last_C_received);
+            if (*rr_buf == FLAG)
+            {
+                state = FLAG_RCV;
+                store_c = C;
+                C = REJ;
+                send();
+                C = store_c;
+                printf("\n SENDING REJ\n");
+            }
+            else if (*rr_buf == C)
+            {
+                last_C_received = C;
+                printf("last is : %x\n", last_C_received);
+                state++;
+            }
+            else if (*rr_buf == last_C_received)
+            {
+                printf("RR\n");
+                store_c = C;
+                RR ^= (1 << 7);
+                C = RR;
+                send();
+                C = last_C_received;
+                RR ^= (1 << 7);
+                state++;
+                rr_rec = 1;
+            }
+            else
+            {
                 state = START;
+                store_c = C;
+                C = REJ;
+                send();
+                C = store_c;
+                printf("\n SENDING REJ\n");
             }
             break;
 
         case C_RCV:
-            //printf("C rcv\n");
+            printf("C rcv\n");
             if (*rr_buf == FLAG)
             {
                 state = FLAG_RCV;
+                store_c = C;
+                C = REJ;
+                send();
+                C = store_c;
+                printf("\n SENDING REJ\n");
             }
             else if ((received_A_value ^ C) == *rr_buf)
             {
@@ -368,11 +400,16 @@ int llread(int fd, char *buffer)
             else
             {
                 state = START;
+                store_c = C;
+                C = REJ;
+                send();
+                C = store_c;
+                printf("\n SENDING REJ\n");
             }
             break;
 
         case BCC_OK:
-            //printf("bcc1_ok\n");
+            printf("bcc1_ok\n");
             if (*rr_buf == ESCAPE)
             {
                 state = STUFF;
@@ -384,7 +421,7 @@ int llread(int fd, char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n SENDING REJ\n");
             }
             else
             {
@@ -395,11 +432,12 @@ int llread(int fd, char *buffer)
             break;
 
         case DATA:
-            //printf("data\t bcc2: %x\n", BCC2_calc);
-            if (*rr_buf == BCC2_calc)
+
+            if (*rr_buf == ESCAPE)
             {
-                state = BCC2_OK;
+                state = STUFF;
             }
+
             else if (*rr_buf == FLAG)
             {
                 state = FLAG_RCV;
@@ -407,26 +445,33 @@ int llread(int fd, char *buffer)
                 store_c = C;
                 C = REJ;
                 send();
-                //printf("\n SENDING REJ\n");
+                printf("\n SENDING REJ\n");
                 C = store_c;
             }
-            else if (*rr_buf == ESCAPE)
+            else if (*rr_buf == BCC2_calc)
             {
-                state = STUFF;
+                state = BCC2_OK;
             }
             else
             {
-                //printf("BCC2: %x rr_buf: %x\n", BCC2_calc, *rr_buf);
+                printf("BCC2: %x rr_buf: %x\n", BCC2_calc, *rr_buf);
                 BCC2_calc ^= *rr_buf;
-                //printf("BCC2: %x \n", BCC2_calc);
+                printf("BCC2: %x \n", BCC2_calc);
                 buffer[dn++] = *rr_buf;
             }
             break;
 
         case BCC2_OK:
-            //printf("bcc2\n");
+            printf("bcc2\n");
             if (*rr_buf == FLAG)
             {
+                if (rr_rec)
+                {
+                    state = START;
+                    C = store_c;
+                    rr_rec = 0;
+                    break;
+                }
                 store_c = C;
                 C = RR;
                 send();
@@ -455,12 +500,13 @@ int llread(int fd, char *buffer)
             break;
 
         case STUFF:
-            //printf("stuff\n");
+            printf("stuff\n");
             if (*rr_buf == 0x5d) // 0x5D = ESCAPE ^ OCT
             {
                 if (ESCAPE == BCC2_calc)
                 {
                     state = BCC2_OK;
+                    C = store_c;
                 }
                 else
                 {
@@ -485,16 +531,21 @@ int llread(int fd, char *buffer)
             else
             {
                 state = FLAG_RCV;
+                store_c = C;
+                C = REJ;
+                send();
+                C = store_c;
+                printf("\n SENDING REJ\n");
             }
             break;
 
         default:
-            //printf("default \n");
+            printf("default \n");
             break;
         }
     }
 
-    //printf("%s\n", buffer);
+    printf("%s\n", buffer);
 
     return dn;
 }
@@ -560,7 +611,7 @@ int llclose(int fd)
             break;
 
         case C_RCV:
-            //printf("buf: %x -- A_r: %x -- C_e: %x\n", *buf, received_A_value, C);
+            printf("buf: %x -- A_r: %x -- C_e: %x\n", *buf, received_A_value, C);
             if (*buf == FLAG)
             {
                 state = FLAG_RCV;
@@ -582,7 +633,7 @@ int llclose(int fd)
                 if (is_transmitter)
                 {
                     alarm_flag = 0;
-                    //printf("\nTransmitter received DISC sending UA\n");
+                    printf("\nTransmitter received DISC sending UA\n");
                     C = UA;
                     send();
                 }
@@ -594,11 +645,11 @@ int llclose(int fd)
                         send();
                         C = UA;
                         state = START;
-                        //printf("\nReceiver received DISC sending DISC\n");
+                        printf("\nReceiver received DISC sending DISC\n");
                         break;
                     }
                     alarm_flag = 0;
-                    //printf("\nReceiver received UA, closing serial port\n");
+                    printf("\nReceiver received UA, closing serial port\n");
                 }
             }
             else
@@ -608,7 +659,7 @@ int llclose(int fd)
             break;
 
         default:
-            //printf("default \n");
+            printf("default \n");
             break;
         }
     }
@@ -633,28 +684,28 @@ void send()
     frame[4] = FLAG;
 
     bytes_written = write(fd, frame, FRAME_SIZE);
-    //printf("%d bytes sent.\n\n", bytes_written);
+    printf("%d bytes sent.\n\n", bytes_written);
 }
 
 int send_w()
 {
     int bytes_written, write_index = 0;
-    unsigned char iFrame[BUFFER_SIZE], BCC2, stuff;
+    unsigned char iFrame[512], BCC2, stuff;
 
     // fill the frame
-    //printf("IFRAME:\n");
+    printf("IFRAME:\n");
     iFrame[0] = FLAG;
-    //printf("%x\n", iFrame[0]);
+    printf("%x\n", iFrame[0]);
     iFrame[1] = A;
-    //printf("%x\n", iFrame[1]);
+    printf("%x\n", iFrame[1]);
     iFrame[2] = C;
-    //printf("%x\n", iFrame[2]);
+    printf("%x\n", iFrame[2]);
     iFrame[3] = A ^ C;
-    //printf("%x\n", iFrame[3]);
+    printf("%x\n", iFrame[3]);
 
     BCC2 = write_buffer[0];
 
-    //printf("Bytes to write %d\n", bytes_to_write);
+    printf("Bytes to write %d\n", bytes_to_write);
     for (int i = 4; i < bytes_to_write + 4; i++, write_index++)
     {
 
@@ -663,46 +714,46 @@ int send_w()
         if (write_buffer[write_index] == FLAG || write_buffer[write_index] == ESCAPE)
         {
             iFrame[i] = ESCAPE;
-            //printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             i++;
             iFrame[i] = stuff ^ OCT;
-            //printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
             bytes_to_write++;
         }
         else
         {
             iFrame[i] = write_buffer[write_index];
-            //printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
+            printf("%d: %x\t%d\n", i, iFrame[i], bytes_to_write);
         }
 
         if (write_index > 0)
         {
-            //printf("BCC2: %x\n", BCC2);
-            //printf("Stuff: %X\n", stuff);
+            printf("BCC2: %x\n", BCC2);
+            printf("Stuff: %X\n", stuff);
             BCC2 = BCC2 ^ stuff;
-            //printf("BCC2: %x\n", BCC2);
+            printf("BCC2: %x\n", BCC2);
         }
     }
 
     if (BCC2 == FLAG)
     {
         iFrame[bytes_to_write + 4] = ESCAPE;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
         iFrame[bytes_to_write + 5] = FLAG ^ OCT;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
         iFrame[bytes_to_write + 6] = FLAG;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 6]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 6]);
     }
     else
     {
         iFrame[bytes_to_write + 4] = BCC2;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 4]);
         iFrame[bytes_to_write + 5] = FLAG;
-        //printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
+        printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
     }
 
     bytes_written = write(fd, iFrame, bytes_to_write + 6);
-    //printf("%d bytes sent.\n\n", bytes_written);
+    printf("%d bytes sent.\n\n", bytes_written);
     return bytes_written;
 }
 
@@ -715,15 +766,15 @@ void llwrite_alarm_handler()
 
     if (conn_attempts < 3)
     {
-        //printf("Unsuccessful WRITE! New attempt... \n");
+        printf("Unsuccessful WRITE! New attempt... \n");
         send_w();
         alarm(3);
         conn_attempts++;
-        //printf("Awaiting acknowledgment...\n\n");
+        printf("Awaiting acknowledgment...\n\n");
     }
     else
     {
-        //printf("Connection Timed Out!\n");
+        printf("Connection Timed Out!\n");
         written = -1;
         return;
     }
@@ -738,15 +789,15 @@ void llopen_alarm_handler()
 
     if (conn_attempts < 3)
     {
-        //printf("Unsuccessful! New attempt... ");
+        printf("Unsuccessful! New attempt... ");
         send();
         alarm(3);
         conn_attempts++;
-        //printf("Awaiting acknowledgment...\n\n");
+        printf("Awaiting acknowledgment...\n\n");
     }
     else
     {
-        //printf("Connection Timed Out!\n");
+        printf("Connection Timed Out!\n");
         return_value = -1;
         exit(1);
     }

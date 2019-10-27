@@ -14,36 +14,36 @@
 #define END 3
 
 /**
- * @brief 
- * 
- * @param fd 
- * @param file_info 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @param file_info
+ * @return int
  */
-int start_writting(int fd, struct stat *file_info, char *filename);
+int start_writting(int fd, struct stat *file_info);
 
 /**
- * @brief 
- * 
+ * @brief
  *
- * @param fd 
- * @return int 
+ *
+ * @param fd
+ * @return int
  */
 int start_reading(int fd);
 
 /**
- * @brief 
- * 
- * @param fd 
- * @param size 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @param size
+ * @return int
  */
-int read_data(int fd, off_t size);
+int read_data(int fd, int cycles);
 
 /**
- * @brief 
- * 
- * @param fd 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @return int
  */
 int write_data(int fd);

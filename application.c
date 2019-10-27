@@ -54,8 +54,8 @@ int main(int argc, char **argv)
   newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
   newtio.c_cc[VMIN] = 1;  /* blocking read until 5 chars received */
 
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
+  /*
+    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
     leitura do(s) pr�ximo(s) caracter(es)
   */
 
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     filename = "pinguim.gif";
     file = fopen(filename, "rb");
     stat(filename, &file_info);
-    start_writting(fd, &file_info, filename);
+    start_writting(fd, &file_info);
     //write_data(fd);
     fclose(file);
   }
@@ -102,6 +102,7 @@ int main(int argc, char **argv)
   {
     return 1;
   }
+  printf("llclosin\n\n");
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
@@ -114,18 +115,18 @@ int main(int argc, char **argv)
   return 0;
 }
 
-int start_writting(int fd, struct stat *file_info, char *filename)
+int start_writting(int fd, struct stat *file_info)
 {
   off_t size = file_info->st_size;
   char control_packet[BUFFER_SIZE];
-  int n_packets = ceil(size / sizeof(char));
+  //int n_packets = ceil(size / sizeof(char));
 
   control_packet[0] = START; // start
   control_packet[1] = 0;     // type => size of file
 
   used_bytes = size / MAX_NUM_BYTE; //
-  printf("UB: %ld\n", used_bytes);
-  
+  printf("UB: %d\n", used_bytes);
+
   for (int i = 0; i < used_bytes; i++)
   {
     control_packet[3 + i] = MAX_NUM_BYTE; // value
@@ -136,9 +137,9 @@ int start_writting(int fd, struct stat *file_info, char *filename)
     control_packet[3 + used_bytes] = size % MAX_NUM_BYTE; // value
     used_bytes++;
   }
-  
-  printf("UB: %ld\n", used_bytes);
-  
+
+  printf("UB: %d\n", used_bytes);
+
   control_packet[2] = used_bytes; // length
 
   llwrite(fd, control_packet, used_bytes + 3);
@@ -149,21 +150,14 @@ int start_writting(int fd, struct stat *file_info, char *filename)
 
 int start_reading(int fd)
 {
-  off_t sizecas;
-  unsigned char buf[BUFFER_SIZE];
-  llread(fd, buf);
+  char buf[BUFFER_SIZE];
+  llread(fd, buf); // 0 0 44 ...
 
   if (buf[0] == START)
   {
     if (buf[1] == 0) // types => size of file
     {
-      sizecas = 0;
-      for (int i = 3; i < 3 + buf[2]; i++)
-      {
-        sizecas += buf[i];
-      }
-      printf("Size = %ld\n",sizecas);
-      read_data(fd, sizecas);
+      read_data(fd, buf[2]);
     }
   }
   else
@@ -174,18 +168,16 @@ int start_reading(int fd)
   return 0;
 }
 
-int read_data(int fd, off_t size)
+int read_data(int fd, int cycles)
 {
-  off_t len = size;
   char buf[BUFFER_SIZE];
-  int read; // bytes read
+  unsigned int read; // bytes read
   FILE *file = fopen("pinguimCopia.gif", "a");
 
-  while (len > 0)
+  for (int i = 0; i < 2 * cycles; i++)
   {
     read = llread(fd, buf);
     fwrite(buf, sizeof(char), read, file);
-    len -= read;
   }
 
   fclose(file);
@@ -195,16 +187,18 @@ int read_data(int fd, off_t size)
 
 int write_data(int fd)
 {
-  char data_packet[BUFFER_SIZE];
-  char buf[BUFFER_SIZE];
+  //char data_packet[BUFFER_SIZE];
+  char buf[128];
   //data_packet[0] = 1; // data packet
-  printf("used bytes mano : %ld\n", used_bytes);
-  for (unsigned int i = 0; i < used_bytes; i++)
+  printf("used bytes : %d\n", used_bytes);
+  for (int i = 0; i < 2 * used_bytes; i++)
   {
-    fread(buf, sizeof(char), BUFFER_SIZE, file);
-    printf("%d:\n", i);
-    llwrite(fd, buf, BUFFER_SIZE);
+    fread(buf, sizeof(char), 128, file);
+    printf("%d  %d:\n", fd, i);
+    //memcpy(buf,"ola",4);
+    llwrite(fd, buf, 128);
   }
+  printf("bleh\n\n");
 
   return 0;
 }

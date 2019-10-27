@@ -7,7 +7,7 @@ OBJECTS = application.o ll.o
 application: $(OBJECTS)
 	gcc $(CFLAGS) -pedantic $(OBJECTS) -o application
 
-application.o = ll.h
+application.o = application.h ll.h
 ll.o = ll.h
 
 clean:
