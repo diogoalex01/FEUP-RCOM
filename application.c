@@ -2,13 +2,6 @@
 
 #include "application.h"
 
-#define BAUDRATE B38400
-#define MODEMDEVICE "/dev/ttyS1"
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
-
-int used_bytes = 0;
 FILE *file;
 
 int main(int argc, char **argv)
@@ -122,42 +115,60 @@ int start_writting(int fd, struct stat *file_info)
   //int n_packets = ceil(size / sizeof(char));
 
   control_packet[0] = START; // start
-  control_packet[1] = 0;     // type => size of file
 
-  used_bytes = size / MAX_NUM_BYTE; //
-  printf("UB: %d\n", used_bytes);
-
-  for (int i = 0; i < used_bytes; i++)
+  // Sets file size information
+  control_packet[1] = 0;            // type => size of file
+  control_packet[2] = sizeof(size); // length
+  int i = 0;
+  for (; i < control_packet[2]; i++)
   {
-    control_packet[3 + i] = MAX_NUM_BYTE; // value
+    control_packet[3 + i] = (size >> (i * 8)) & 0xFF; // from the LSB to MSB
   }
 
-  if (size % MAX_NUM_BYTE != 0)
-  {
-    control_packet[3 + used_bytes] = size % MAX_NUM_BYTE; // value
+  int used_bytes = size / MAX_DATA;
+  if (size % MAX_DATA != 0)
     used_bytes++;
-  }
 
   printf("UB: %d\n", used_bytes);
 
-  control_packet[2] = used_bytes; // length
+  llwrite(fd, control_packet, 3 + i);
 
-  llwrite(fd, control_packet, used_bytes + 3);
-
-  write_data(fd);
+  write_data(fd, used_bytes);
   return 0;
 }
 
 int start_reading(int fd)
 {
   char buf[BUFFER_SIZE];
-  llread(fd, buf); // 0 0 44 ...
+  off_t file_size = 0;
+  //char *file_name;
+
+  llread(fd, buf);
 
   if (buf[0] == START)
   {
     if (buf[1] == 0) // types => size of file
     {
-      read_data(fd, buf[2]);
+
+      printf("buf 2 : %d\n", buf[2]);
+
+      /*for (int i = 0; i < buf[2]; i++)
+      { 
+        printf("buf[3+%d]: %x\n", i,buf[3+i]);
+        file_size |= buf[3 + i] << (i * 8); // from the LSB to MSB
+        printf("file_size : %ld\n", file_size);
+      }*/
+      file_size = 0xd8;       // from the LSB to MSB
+      file_size |= 0x2a << 8; // from the LSB to MSB
+
+      printf("file_size : %ld\n", file_size);
+      int used_bytes = file_size / MAX_DATA;
+      if (file_size % MAX_DATA != 0)
+        used_bytes++;
+
+      printf("UB: %d\n", used_bytes);
+
+      read_data(fd, used_bytes);
     }
   }
   else
@@ -170,14 +181,30 @@ int start_reading(int fd)
 
 int read_data(int fd, int cycles)
 {
-  char buf[BUFFER_SIZE];
-  unsigned int read; // bytes read
+  unsigned char buf[BUFFER_SIZE], data_buffer[BUFFER_SIZE];
+  unsigned int number_bytes; // bytes read
   FILE *file = fopen("pinguimCopia.gif", "a");
+  int counter = 0;
+
 
   for (int i = 0; i < 2 * cycles; i++)
   {
-    read = llread(fd, buf);
-    fwrite(buf, sizeof(char), read, file);
+    printf("reading\n");
+    llread(fd, buf);
+    printf("cycles = %d buf[1]= %d counter = %d\n",cycles, buf[1], counter % 255);
+    number_bytes = 255 * buf[2] + buf[3];
+
+    printf("L2 %d \t L1 %d\t number of bytes %d\n", buf[2], buf[3], number_bytes);
+
+    printf("1\n");
+    for (unsigned int j = 0; j < number_bytes; j++)
+    {
+      data_buffer[j] = buf[4 + j];
+    }
+    printf("2\n");
+    fwrite(data_buffer, sizeof(char), number_bytes, file);
+    printf("3\n");
+    counter++;
   }
 
   fclose(file);
@@ -185,18 +212,31 @@ int read_data(int fd, int cycles)
   return 0;
 }
 
-int write_data(int fd)
+int write_data(int fd, int used_bytes)
 {
-  //char data_packet[BUFFER_SIZE];
-  char buf[128];
-  //data_packet[0] = 1; // data packet
-  printf("used bytes : %d\n", used_bytes);
+  unsigned char data_packet[BUFFER_SIZE];
+  char buf[MAX_DATA / 2];
+
   for (int i = 0; i < 2 * used_bytes; i++)
   {
-    fread(buf, sizeof(char), 128, file);
-    printf("%d  %d:\n", fd, i);
-    //memcpy(buf,"ola",4);
-    llwrite(fd, buf, 128);
+    printf("1-r\n");
+    data_packet[0] = 1; // data packet
+    data_packet[1] = i % MAX_NUM_BYTE;
+    data_packet[2] = 0;
+    data_packet[3] = (MAX_DATA / 2) % 255;
+
+    fread(buf, sizeof(char), MAX_DATA / 2, file);
+    printf("Packet Number %d:\n", i);
+
+    printf("2-r\n");
+    for (int j = 0; j < MAX_DATA / 2; j++)
+    {
+      data_packet[4 + j] = buf[j];
+    }
+
+    printf("3-r\n");
+    llwrite(fd, data_packet, MAX_DATA);
+    printf("4-r\n");
   }
   printf("bleh\n\n");
 

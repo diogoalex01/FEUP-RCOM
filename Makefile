@@ -1,7 +1,7 @@
 .PHONY: all clean
 all: application
 
-CFLAGS = -Wall -Wextra -Werror
+CFLAGS = -Wall -Wextra
 OBJECTS = application.o ll.o
 
 application: $(OBJECTS)

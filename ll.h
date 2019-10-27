@@ -21,7 +21,6 @@
 #define UA 0x07
 #define ESCAPE 0x7D
 #define OCT 0x20
-#define MAX_NUM_BYTE 255
 
 /* enums */
 // ========================================================= //
