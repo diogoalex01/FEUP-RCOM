@@ -61,15 +61,16 @@ int llopen(int port, int flag);
  * @param length 
  * @return int 
  */
-int llwrite(int fd, char *buffer, int length);
+int llwrite(int fd, unsigned char *buffer, int length);
 
 /**
- * @brief
+ * @brief 
+ * 
  * @param fd 
- * @param buffer
- * @return int
+ * @param buffer 
+ * @return int 
  */
-int llread(int fd, char *buffer);
+int llread(int fd, unsigned char *buffer);
 
 /**
  * @brief 
