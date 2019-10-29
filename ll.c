@@ -258,8 +258,7 @@ int llwrite(int fdesc, unsigned char *buffer, int length)
                     written = send_w();
                     alarm(3);
                     sleep(2);
-
-                    //printf("REJ received, resending I frame... C = %c\n", C);
+                    printf("** REJ received, resending iFrame... **\n");
                 }
             }
             else
@@ -336,7 +335,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             break;
 
@@ -350,7 +349,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             else if (*rr_buf == C)
             {
@@ -377,7 +376,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             break;
 
@@ -390,7 +389,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             else if ((received_A_value ^ C) == *rr_buf)
             {
@@ -403,7 +402,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             break;
 
@@ -420,7 +419,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             else
             {
@@ -444,8 +443,8 @@ int llread(int fd, unsigned char *buffer)
                 store_c = C;
                 C = REJ;
                 send();
-                //printf("\n SENDING REJ\n");
                 C = store_c;
+                printf("\n ** Sending REJ **\n\n");
             }
             else if (*rr_buf == BCC2_calc)
             {
@@ -539,7 +538,7 @@ int llread(int fd, unsigned char *buffer)
                 C = REJ;
                 send();
                 C = store_c;
-                //printf("\n SENDING REJ\n");
+                printf("\n ** Sending REJ **\n\n");
             }
             break;
 

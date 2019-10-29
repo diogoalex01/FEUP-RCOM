@@ -12,12 +12,18 @@
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
+
 #define FALSE 0
 #define TRUE 1
 #define MAX_NUM_BYTE 255
 #define MAX_DATA 256
-
 #define BITS_IN_BYTE 8
+
+#define SEQUENCE_NUMBER_INDEX 1
+#define L2_INDEX 2
+#define L1_INDEX 3
+#define DATA_INDEX 4
+
 #define PACKET_TYPE_INDEX 0
 #define DATA_TYPE 1
 #define START_TYPE 2
