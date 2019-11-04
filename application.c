@@ -4,9 +4,12 @@
 
 FILE *file;
 int used_bytes;
+int errors_header[NUMBER_ERRORS_HEADER], errors_data[NUMBER_ERRORS_DATA];
 
 int main(int argc, char **argv)
 {
+  struct timespec start_time, end_time;
+  double total_time;
   struct termios oldtio, newtio;
   //char buf[BUFFER_SIZE];
   int fd, flag;
@@ -43,6 +46,9 @@ int main(int argc, char **argv)
     printf("** Not a valid role! **\n");
     return 1;
   }
+
+  // initial time
+  clock_gettime(CLOCK_REALTIME, &start_time);
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -112,6 +118,13 @@ int main(int argc, char **argv)
     return 1;
 
   printf("*** Connection terminated. ***\n\n");
+
+  // final time
+  clock_gettime(CLOCK_REALTIME, &end_time);
+  total_time = (start_time.tv_sec - end_time.tv_sec) +
+               (end_time.tv_nsec - start_time.tv_nsec) / CLOCK_MAC;
+
+  printf("Time elapsed: %f seconds \n", total_time);
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
@@ -194,6 +207,7 @@ int start_reading(int fd)
 
   printf("\t\tFile name: %s\n\t\tFile size: %ld bytes\n", file_name, file_size);
 
+  //random_number_gen(used_bytes);
   read_data(fd, used_bytes, file_name);
 
   if ((llread(fd, buf)) < 0)
@@ -354,3 +368,24 @@ void show_transf_progress(int packet_number, int total_packets)
   printf("\t\t[Packet %d of %d] %3.2f%% \r", packet_number, total_packets, percentage);
   fflush(stdout);
 }
+
+/*
+void random_number_gen(int number)
+{
+  // seed for randomness
+  srand(time(NULL));
+
+  int number_errors_header = NUMBER_ERRORS_HEADER;
+
+  for (int i = 0; i < number_errors_header; i++)
+  {
+    errors_header[i] = rand() % (2 * number);
+  }
+
+  int number_errors_data = NUMBER_ERRORS_DATA;
+
+  for (int i = 0; i < number_errors_data; i++)
+  {
+    errors_data[i] = rand() % (2 * number);
+  }
+}*/
