@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 
 /* MACROS */
 // ========================================================= //
@@ -45,38 +46,38 @@ typedef enum
 // ========================================================= //
 
 /**
- * @brief 
- * 
- * @param port 
- * @param flag 
- * @return int 
+ * @brief
+ *
+ * @param port
+ * @param flag
+ * @return int
  */
 int llopen(int port, int flag);
 
 /**
- * @brief 
- * 
- * @param fd 
- * @param buffer 
- * @param length 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @param buffer
+ * @param length
+ * @return int
  */
 int llwrite(int fd, unsigned char *buffer, int length);
 
 /**
- * @brief 
- * 
- * @param fd 
- * @param buffer 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @param buffer
+ * @return int
  */
 int llread(int fd, unsigned char *buffer);
 
 /**
- * @brief 
- * 
- * @param fd 
- * @return int 
+ * @brief
+ *
+ * @param fd
+ * @return int
  */
 int llclose(int fd);
 
@@ -84,34 +85,36 @@ int llclose(int fd);
 // ========================================================= //
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void send();
 
 /**
- * @brief 
- * 
- * @return int 
+ * @brief
+ *
+ * @return int
  */
 int send_w();
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void llwrite_alarm_handler();
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void llopen_alarm_handler();
 
 /**
- * @brief 
- * 
- * @param packet 
- * @return unsigned* error_injection 
+ * @brief
+ *
+ * @param packet
+ * @return unsigned* error_injection
  */
-void error_injection(unsigned char *packet);
+void error_injection_bcc1(unsigned char *packet);
+
+void error_injection_bcc2(unsigned char *packet, int index);

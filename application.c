@@ -8,8 +8,6 @@ int used_bytes;
 
 int main(int argc, char **argv)
 {
-  // seed for randomness
-  srand(time(NULL));
   struct timespec start_time, end_time;
   double total_time;
   struct termios oldtio, newtio;
@@ -128,7 +126,7 @@ int main(int argc, char **argv)
 
   printf("*** Connection terminated. ***\n\n");
 
- 
+
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
@@ -372,5 +370,3 @@ void show_transf_progress(int packet_number, int total_packets)
   printf("\t\t[Packet %d of %d] %3.2f%% \r", packet_number, total_packets, percentage);
   fflush(stdout);
 }
-
-

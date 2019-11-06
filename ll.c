@@ -5,13 +5,15 @@
 
 unsigned char BCC, C = 0x00, expected_C_value = 0x85, *write_buffer;
 int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write, return_value = 0, written = 0, last_C_received = 0x40, is_transmitter;
-int error_rate = 300;
+int error_rate_bcc1 = 0, error_rate_bcc2 = 0;
 
 /* protocol */
 // ========================================================= //
 
 int llopen(int port, int flag)
 {
+    // seed for randomness
+    srand(time(NULL));
     states_t state = START;
     //int bytes_read;
     unsigned char buf[BUFFER_SIZE], received_A_value, expected_C_value;
@@ -746,6 +748,7 @@ int send_w()
         }
     }
 
+
     if (BCC2 == FLAG || BCC2 == ESCAPE)
     {
         iFrame[bytes_to_write + 4] = ESCAPE;
@@ -762,7 +765,9 @@ int send_w()
         iFrame[bytes_to_write + 5] = FLAG;
         //printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
     }
-    error_injection(iFrame);
+
+    error_injection_bcc1(iFrame);
+    error_injection_bcc2(iFrame, bytes_to_write + 4);
     bytes_written = write(fd, iFrame, bytes_to_write + 6);
     //printf("%d bytes sent.\n\n", bytes_written);
     return bytes_written;
@@ -814,12 +819,24 @@ void llopen_alarm_handler()
     }
 }
 
-void error_injection(unsigned char *packet)
+void error_injection_bcc1(unsigned char *packet)
 {
     int random_error = (rand() % 1000) + 1;
     srand(random_error);
     int random_index = (rand() % 3) + 1;
-    if (random_error <= error_rate)
+    if (random_error <= error_rate_bcc1)
+    {
+        printf("\n\nRandom error was: %d\n", random_error);
+        packet[random_index] = (unsigned char)('!' + (rand() % 50));
+    }
+}
+
+void error_injection_bcc2(unsigned char *packet, int index)
+{
+    int random_error = (rand() % 1000) + 1;
+    srand(random_error);
+    int random_index = (rand() % index - 1) + 4;
+    if (random_error <= error_rate_bcc2)
     {
         printf("\n\nRandom error was: %d\n", random_error);
         packet[random_index] = (unsigned char)('!' + (rand() % 50));
