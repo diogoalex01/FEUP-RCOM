@@ -107,3 +107,11 @@ void llwrite_alarm_handler();
  * 
  */
 void llopen_alarm_handler();
+
+/**
+ * @brief 
+ * 
+ * @param packet 
+ * @return unsigned* error_injection 
+ */
+void error_injection(unsigned char *packet);

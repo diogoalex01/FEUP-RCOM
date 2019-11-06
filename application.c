@@ -4,10 +4,12 @@
 
 FILE *file;
 int used_bytes;
-int errors_header[NUMBER_ERRORS_HEADER], errors_data[NUMBER_ERRORS_DATA];
+//int errors_header[NUMBER_ERRORS_HEADER], errors_data[NUMBER_ERRORS_DATA];
 
 int main(int argc, char **argv)
 {
+  // seed for randomness
+  srand(time(NULL));
   struct timespec start_time, end_time;
   double total_time;
   struct termios oldtio, newtio;
@@ -117,14 +119,16 @@ int main(int argc, char **argv)
   if (llclose(fd) < 0)
     return 1;
 
-  printf("*** Connection terminated. ***\n\n");
-
   // final time
   clock_gettime(CLOCK_REALTIME, &end_time);
-  total_time = (start_time.tv_sec - end_time.tv_sec) +
+  total_time = (end_time.tv_sec - start_time.tv_sec) +
                (end_time.tv_nsec - start_time.tv_nsec) / CLOCK_MAC;
 
-  printf("Time elapsed: %f seconds \n", total_time);
+  printf("\t[Time elapsed: %f seconds]\n", total_time);
+
+  printf("*** Connection terminated. ***\n\n");
+
+ 
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
@@ -369,23 +373,4 @@ void show_transf_progress(int packet_number, int total_packets)
   fflush(stdout);
 }
 
-/*
-void random_number_gen(int number)
-{
-  // seed for randomness
-  srand(time(NULL));
 
-  int number_errors_header = NUMBER_ERRORS_HEADER;
-
-  for (int i = 0; i < number_errors_header; i++)
-  {
-    errors_header[i] = rand() % (2 * number);
-  }
-
-  int number_errors_data = NUMBER_ERRORS_DATA;
-
-  for (int i = 0; i < number_errors_data; i++)
-  {
-    errors_data[i] = rand() % (2 * number);
-  }
-}*/

@@ -18,7 +18,7 @@
 #define FALSE 0
 #define TRUE 1
 #define MAX_NUM_BYTE 255
-#define MAX_DATA 256
+#define MAX_DATA 380
 #define BITS_IN_BYTE 8
 //#define NUMBER_ERRORS_HEADER 2
 //#define NUMBER_ERRORS_DATA 2

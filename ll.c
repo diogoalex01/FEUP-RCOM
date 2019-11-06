@@ -5,6 +5,7 @@
 
 unsigned char BCC, C = 0x00, expected_C_value = 0x85, *write_buffer;
 int alarm_flag = 1, conn_attempts = 1, fd, bytes_to_write, return_value = 0, written = 0, last_C_received = 0x40, is_transmitter;
+int error_rate = 300;
 
 /* protocol */
 // ========================================================= //
@@ -278,7 +279,7 @@ int llread(int fd, unsigned char *buffer)
 {
     states_t state = START;
     unsigned char received_A_value = 0x03, BCC2_calc = 0x00, RR, REJ, store_c, rr_buf[BUFFER_SIZE];
-    int dn = 0, rr_rec = 0, duplicated = 0;
+    int dn = 0, rr_rec = 0, duplicated = 0, bcc;
 
     if (C == 0x00)
     {
@@ -383,7 +384,6 @@ int llread(int fd, unsigned char *buffer)
 
         case C_RCV:
             //printf("C rcv\n\n** C is %x\n", C);
-            int bcc;
             if (duplicated == 1)
             {
                 bcc = received_A_value ^ (C ^ (1 << 6));
@@ -701,7 +701,7 @@ void send()
 int send_w()
 {
     int bytes_written, write_index = 0;
-    unsigned char iFrame[512], BCC2, stuff;
+    unsigned char iFrame[BUFFER_SIZE * 2], BCC2, stuff;
 
     // fill the frame
     //printf("IFRAME:\n");
@@ -762,7 +762,7 @@ int send_w()
         iFrame[bytes_to_write + 5] = FLAG;
         //printf("IFRAME: %x \n", iFrame[bytes_to_write + 5]);
     }
-
+    error_injection(iFrame);
     bytes_written = write(fd, iFrame, bytes_to_write + 6);
     //printf("%d bytes sent.\n\n", bytes_written);
     return bytes_written;
@@ -811,5 +811,17 @@ void llopen_alarm_handler()
         printf("\n\t\t   ** Connection Timed Out! **\n\n");
         return_value = -1;
         exit(1);
+    }
+}
+
+void error_injection(unsigned char *packet)
+{
+    int random_error = (rand() % 1000) + 1;
+    srand(random_error);
+    int random_index = (rand() % 3) + 1;
+    if (random_error <= error_rate)
+    {
+        printf("\n\nRandom error was: %d\n", random_error);
+        packet[random_index] = (unsigned char)('!' + (rand() % 50));
     }
 }
