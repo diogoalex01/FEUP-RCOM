@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# RCOM TP2: TUX2 shell script (bash)
+# chmod u+x tux-2
+
+ifconfig eth0 172.16.21.1/24
+
+echo 1 > /proc/sys/net/ipv4/ip_forward
+echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
