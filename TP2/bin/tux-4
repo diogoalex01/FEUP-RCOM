@@ -3,8 +3,22 @@
 # RCOM TP2: TUX4 shell script (bash)
 # chmod u+x tux-4
 
-ifconfig eth0 172.16.20.254/24
-ifconfig eth1 172.16.21.253/24
+# Reset Network Settings #
+/etc/init.d/network restart
+ifconfig eth0 down
+ifconfig eth0 up
+ifconfig eth1 down
+ifconfig eth1 up
 
+# Experience 1 #
+ifconfig eth0 172.16.20.254/24
+
+# Experience 2 #
 echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+
+# Experience 3 #
+ifconfig eth1 172.16.21.253/24
+
+# Experience 4 #
+route add defaul gw 172.16.11.254

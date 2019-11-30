@@ -3,7 +3,20 @@
 # RCOM TP2: TUX2 shell script (bash)
 # chmod u+x tux-2
 
+# Reset Network Settings #
+/etc/init.d/network restart
+ifconfig eth0 down
+ifconfig eth0 up
+
+# Experience 1 #
 ifconfig eth0 172.16.21.1/24
 
+# Experience 2 #
 echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+
+# Experience 3 #
+route add -net 172.16.20.0/24 gw 172.16.21.253
+
+# Experience 4 #
+route add defaul gw 172.16.11.254
