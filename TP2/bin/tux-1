@@ -4,7 +4,7 @@
 # chmod u+x tux-1
 
 # Reset Network Settings #
-/etc/init.d/network restart
+/etc/init.d/networking restart
 ifconfig eth0 down
 ifconfig eth0 up
 ifconfig eth1 down
@@ -19,3 +19,6 @@ echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 
 # Experience 3 #
 route add -net 172.16.21.0/24 gw 172.16.20.254
+
+# Experience 4 #
+route add default gw 172.16.20.254
