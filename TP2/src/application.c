@@ -11,33 +11,34 @@ int main(int argc, char **argv)
 	// char buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";
 	// int bytes;
 
-	// /*server address handling*/
-	// bzero((char *)&server_addr, sizeof(server_addr));
-	// server_addr.sin_family = AF_INET;
-	// server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR); /* 32 bit Internet address network byte ordered */
-	// server_addr.sin_port = htons(SERVER_PORT);			  /* server TCP port must be network byte ordered */
+	/*server address handling*/
+	bzero((char *)&server_addr, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR); /* 32 bit Internet address network byte ordered */
+	server_addr.sin_port = htons(SERVER_PORT);			  /* server TCP port must be network byte ordered */
 
-	// /*open an TCP socket*/
-	// if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	// {
-	// 	perror("socket()");
-	// 	exit(0);
-	// }
+	/*open an TCP socket*/
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		perror("socket()");
+		exit(0);
+	}
 
-	// /*connect to the server*/
-	// if (connect(sockfd,
-	// 			(struct sockaddr *)&server_addr,
-	// 			sizeof(server_addr)) < 0)
-	// {
-	// 	perror("connect()");
-	// 	exit(0);
-	// }
+	/*connect to the server*/
+	if (connect(sockfd,
+				(struct sockaddr *)&server_addr,
+				sizeof(server_addr)) < 0)
+	{
+		perror("connect()");
+		exit(0);
+	}
 
 	// /*send a string to the server*/
 	// bytes = write(sockfd, buf, strlen(buf));
 	// printf("Bytes escritos %d\n", bytes);
 
 	// close(sockfd);
+	printf("\n1\n");
 	parse_arguments(argv[1]);
 	exit(0);
 }
@@ -149,5 +150,78 @@ void print_parsed_url()
 		   url_arg.server, url_arg.user, url_arg.password, url_arg.host, url_arg.url);
 }
 
+void get_reply(int socket_fd, char *reply_code);
+{
+	int state = 0;
+	int index = 0;
+	char c;
+
+	while (state != 3)
+	{	
+		read(socket_fd, &c, 1);
+		printf("%c", c);
+		switch (state)
+		{
+		//waits for 3 digit number followed by ' ' or '-'
+		case 0:
+			if (c == ' ')
+			{
+				if (index != 3)
+				{
+					printf(" > Error receiving response code\n");
+					return;
+				}
+				index = 0;
+				state = 1;
+			}
+			else
+			{
+				if (c == '-')
+				{
+					state = 2;
+					index=0;
+				}
+				else
+				{
+					if (isdigit(c))
+					{
+						reply_code[index] = c;
+						index++;
+					}
+				}
+			}
+			break;
+		//reads until the end of the line
+		case 1:
+			if (c == '\n')
+			{
+				state = 3;
+			}
+			break;
+		//waits for response code in multiple line responses
+		case 2:
+			if (c == reply_code[index])
+			{
+				index++;
+			}
+			else
+			{
+				if (index == 3 && c == ' ')
+				{
+					state = 1;
+				}
+				else 
+				{
+				  if(index==3 && c=='-'){
+					index=0;
+					
+				}
+				}
+				
+			}
+			break;
+		}
+	}
+}
 // ftp://host/url-path
 // ftp://user:password@host/url-path

@@ -45,3 +45,5 @@ int parse_arguments(char *arguments);
  * 
  */
 void print_parsed_url();
+
+void get_reply(int socket_fd, char *reply_code);
