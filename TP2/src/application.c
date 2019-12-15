@@ -3,29 +3,41 @@
 #include "application.h"
 
 url_syntax url_arg;
+char server_response[3];
 
 int main(int argc, char **argv)
 {
-	// int sockfd;
-	// struct sockaddr_in server_addr;
-	// char buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";
+	int socket_fd, ret;
+	struct sockaddr_in server_addr;
 	// int bytes;
+
+	if (argc != 2)
+	{
+		printf("Wrong number of arguments.\n");
+		printf("Usage: %s ftp://[<user>:<password>@]<host>/<url-path>\n");
+		return 1;
+	}
+
+	if (parse_arguments(argv[1]))
+		return 1;
+
+	char *server_ip = get_IP(url_arg.host);
 
 	/*server address handling*/
 	bzero((char *)&server_addr, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR); /* 32 bit Internet address network byte ordered */
-	server_addr.sin_port = htons(SERVER_PORT);			  /* server TCP port must be network byte ordered */
+	server_addr.sin_addr.s_addr = inet_addr(server_ip); /* 32 bit Internet address network byte ordered */
+	server_addr.sin_port = htons(SERVER_PORT);			/* server TCP port must be network byte ordered */
 
 	/*open an TCP socket*/
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		perror("socket()");
 		exit(0);
 	}
 
 	/*connect to the server*/
-	if (connect(sockfd,
+	if (connect(socket_fd,
 				(struct sockaddr *)&server_addr,
 				sizeof(server_addr)) < 0)
 	{
@@ -33,17 +45,43 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
+	ret = get_reply(server_response, 1024, socket_fd);
+	if (ret == CONNECTED)
+	{
+		printf("Connection Established\n");
+	}
+
+	if (strlen(url_arg.user))
+	{
+		if (login(url_arg.user, url_arg.password, socket_fd))
+		{
+			printf("Invalid login\n");
+			return 1;
+		}
+	}
+
+	if (set_passive_mode(socket_fd))
+	{
+		printf("Could not set passive mode\n");
+		return 1;
+	}
+
+	if (download(socket_fd))
+	{
+		printf("Could not download\n");
+		return 1;
+	}
+
 	// /*send a string to the server*/
-	// bytes = write(sockfd, buf, strlen(buf));
+	// bytes = write(socket_fd, buf, strlen(buf));
 	// printf("Bytes escritos %d\n", bytes);
 
-	// close(sockfd);
-	printf("\n1\n");
-	parse_arguments(argv[1]);
+	// close(socket_fd);
+
 	exit(0);
 }
 
-void get_IP(const char *name)
+char *get_IP(const char *name)
 {
 	struct hostent *h;
 
@@ -67,6 +105,8 @@ void get_IP(const char *name)
 
 	printf("Host name  : %s\n", h->h_name);
 	printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *)h->h_addr)));
+
+	return inet_ntoa(*((struct in_addr *)h->h_addr));
 }
 
 // ftp://[<user>:<password>@]<host>/<url-path>
@@ -81,7 +121,7 @@ int parse_arguments(char *arguments)
 	if (strcmp(url_arg.server, "ftp://"))
 	{
 		printf("Expected 'ftp://', got '%s'\n", url_arg.server);
-		exit(1);
+		return 1;
 	}
 
 	if (!strcmp(arguments, auth))
@@ -98,7 +138,8 @@ int parse_arguments(char *arguments)
 	if (auth != NULL)
 	{
 		// parse user and password - user:password
-		char *token, *credentials, *tk;
+		char *token, *tk;
+		char *credentials = (char *)malloc(sizeof(char) * 512);
 		token = strtok(auth, "/");
 
 		while (token != NULL)
@@ -120,23 +161,34 @@ int parse_arguments(char *arguments)
 
 		while (tk != NULL)
 		{
-			strcpy(url_arg.url, tk);
 			tk = strtok(NULL, "/");
+			if (tk == NULL)
+				break;
+			strcat(url_arg.url, "/");
+			strcat(url_arg.url, tk);
 		}
+
+		memcpy(url_arg.url, &url_arg.url[1], strlen(url_arg.url));
 	}
 	// in case there's no login info
 	else
 	{
-		// parse host and url-path - host/url-path
+		// parse host and url-path - ftp://host/folder/filename
 		char *tk = strtok(url, "/");
 		tk = strtok(NULL, "/");
 		strcpy(url_arg.host, tk);
 
 		while (tk != NULL)
 		{
-			strcpy(url_arg.url, tk);
 			tk = strtok(NULL, "/");
+			if (tk == NULL)
+				break;
+			strcat(url_arg.url, "/");
+			strcat(url_arg.url, tk);
 		}
+
+		memcpy(url_arg.url, &url_arg.url[1], strlen(url_arg.url));
+		url_arg.url[strlen(url_arg.url)] = '\0';
 	}
 
 	print_parsed_url();
@@ -146,82 +198,202 @@ int parse_arguments(char *arguments)
 
 void print_parsed_url()
 {
-	printf(" Server: %s\n User: %s\n Password: %s\n Host: %s\n URL: %s\n",
+	printf(" Server: %s\n User: %s\n Password: %s\n Host: %s\n URL: 9%s99\n",
 		   url_arg.server, url_arg.user, url_arg.password, url_arg.host, url_arg.url);
 }
 
-void get_reply(int socket_fd, char *reply_code);
+static int get_reply(char *resp, int len, int socket_fd)
 {
-	int state = 0;
-	int index = 0;
-	char c;
+	usleep(100 * 1000);
+	memset(resp, 0, 1024);
+	read(socket_fd, resp, 1024);
+	char *asn_server = strndup(resp, 3);
+	printf("respond:%s\n", resp);
+	return atoi(asn_server);
+}
 
-	while (state != 3)
-	{	
-		read(socket_fd, &c, 1);
-		printf("%c", c);
-		switch (state)
+int login(char *user, char *password, int socket_fd)
+{
+	char user_cmd[1024];
+	char password_cmd[1024];
+	int ret;
+	// send USER
+	sprintf(user_cmd, "USER %s\r\n", user);
+	ret = write(socket_fd, user_cmd, strlen(user_cmd));
+
+	if (!ret)
+	{
+		printf("Could not send username\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	ret = get_reply(server_response, 1024, socket_fd);
+
+	if (ret != REQ_PASSWORD)
+	{
+		printf("Invalid username\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	// send PASS
+	sprintf(password_cmd, "PASS %s\r\n", password);
+	ret = write(socket_fd, password_cmd, strlen(password_cmd));
+
+	if (!ret)
+	{
+		printf("Could not send password\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	ret = get_reply(server_response, 1024, socket_fd);
+
+	if (ret != CORRECT_PASSWORD)
+	{
+		printf("Invalid password\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	printf("User authenticated\n");
+	return 0;
+}
+
+int set_passive_mode(socket_fd)
+{
+	int ret, a, b, c, d, pa, pb;
+	ret = write(socket_fd, PASSIVE_CMD, strlen(PASSIVE_CMD));
+
+	if (!ret)
+	{
+		printf("Could not send passive mode request\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	ret = get_reply(server_response, 1024, socket_fd);
+
+	if (ret != PASSIVE_MODE)
+	{
+		printf("Passive mode not enabled\n");
+		close(socket_fd);
+		return 1;
+	}
+
+	char *reply;
+	reply = strrchr(server_response, '(');
+	sscanf(reply, "(%d,%d,%d,%d,%d,%d)", &a, &b, &c, &d, &pa, &pb);
+	sprintf(url_arg.ipaddr, "%d.%d.%d.%d", a, b, c, d);
+	url_arg.port = pa * 256 + pb;
+	printf("addr %s\n", url_arg.ipaddr);
+	printf("port %d\n", url_arg.port);
+
+	printf("Passive mode enabled\n");
+	return 0;
+}
+
+int send_retr(int socket_fd)
+{
+	char retr_cmd[1024];
+	int ret;
+	printf("\n2.1\n");
+	sprintf(retr_cmd, "RETR /parrot/last-sync.txt\r\n");
+	printf("\n2.2\n");
+
+	ret = write(socket_fd, retr_cmd, strlen(retr_cmd));
+	printf("\n2.3\n");
+
+	if (!ret)
+	{
+		close(socket_fd);
+		return 1;
+	}
+	printf("\n2.4\n");
+
+	ret = get_reply(server_response, 1024, socket_fd);
+	printf("\n2.5\n");
+	printf("%d", ret);
+
+	if (ret != RETR)
+	{
+		close(socket_fd);
+		return 1;
+	}
+
+	printf("RETR sent\n");
+	return 0;
+}
+
+int download(int socket_fd)
+{
+	int socket_client;
+	struct sockaddr_in server_addr_client;
+	FILE *new_file;
+	char buffer[1024];
+	int ret;
+
+	if (!(new_file = fopen(url_arg.url, "w")))
+	{
+		printf("Unable to open file %s\n", url_arg.url);
+		return 1;
+	}
+
+	/*server address handling*/
+	bzero((char *)&server_addr_client, sizeof(server_addr_client));
+	server_addr_client.sin_family = AF_INET;
+	server_addr_client.sin_addr.s_addr = inet_addr(url_arg.ipaddr); /*32 bit Internet address network byte ordered*/
+	server_addr_client.sin_port = htons(url_arg.port);				/*server TCP port must be network byte ordered */
+
+	/*open an TCP socket*/
+	if ((socket_client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		perror("socket()");
+		exit(0);
+	}
+	/*connect to the server*/
+	printf("\n1\n");
+
+	if (connect(socket_client, (struct sockaddr *)&server_addr_client, sizeof(server_addr_client)) < 0)
+	{
+		perror("connect()");
+		exit(0);
+	}
+	printf("\n2\n");
+
+	if (send_retr(socket_fd))
+	{
+		printf("Unable to send RETR\n");
+		return 1;
+	}
+	printf("\n3\n");
+	while ((ret = read(socket_client, buffer, 1024)))
+	{
+		if ((ret = fwrite(buffer, ret, 1, new_file)) < 0)
 		{
-		//waits for 3 digit number followed by ' ' or '-'
-		case 0:
-			if (c == ' ')
-			{
-				if (index != 3)
-				{
-					printf(" > Error receiving response code\n");
-					return;
-				}
-				index = 0;
-				state = 1;
-			}
-			else
-			{
-				if (c == '-')
-				{
-					state = 2;
-					index=0;
-				}
-				else
-				{
-					if (isdigit(c))
-					{
-						reply_code[index] = c;
-						index++;
-					}
-				}
-			}
-			break;
-		//reads until the end of the line
-		case 1:
-			if (c == '\n')
-			{
-				state = 3;
-			}
-			break;
-		//waits for response code in multiple line responses
-		case 2:
-			if (c == reply_code[index])
-			{
-				index++;
-			}
-			else
-			{
-				if (index == 3 && c == ' ')
-				{
-					state = 1;
-				}
-				else 
-				{
-				  if(index==3 && c=='-'){
-					index=0;
-					
-				}
-				}
-				
-			}
-			break;
+			printf("Unable to write to file %s\n");
+			return 1;
 		}
 	}
+	printf("\n4\n");
+	if (ret < 0)
+	{
+		printf("Unable to read from socket\n");
+		return 1;
+	}
+	printf("\n5\n");
+	/*ret = get_reply(server_response, 1024, socket_fd);
+	printf("\n6\n");
+	if (ret != DOWNLOAD_COMPLETED)
+	{	
+
+		close(socket_client);
+		return 1;
+	}*/
+	fclose(new_file);
+	printf("Download completed\n");
+	return 0;
 }
 // ftp://host/url-path
 // ftp://user:password@host/url-path

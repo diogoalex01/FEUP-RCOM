@@ -13,8 +13,18 @@
 #include <errno.h>
 #include <string.h>
 
-#define SERVER_PORT 6000
-#define SERVER_ADDR "192.168.28.96"
+#define SERVER_PORT 21
+
+// status codes
+#define RETR 150 // Files are in good condition and ready to open data connection.
+#define CONNECTED 220 // The service is ready to execute the new user's request.
+#define DOWNLOAD_COMPLETED 226 // Download was sucessful.
+#define PASSIVE_MODE 227 // Entering passive mode.
+#define CORRECT_PASSWORD 230 // Users logged in to continue.
+#define REQ_PASSWORD 331 // The user name is correct and a password is required.
+#define WRONG_PASSWORD 530 // Is not logged in.
+
+#define PASSIVE_CMD "PASV\r\n"
 
 typedef struct
 {
@@ -23,6 +33,8 @@ typedef struct
     char host[255];
     char url[255];
     char server[255];
+    char ipaddr[32];
+    int port;
 } url_syntax;
 
 /**
@@ -30,7 +42,7 @@ typedef struct
  * 
  * @param name 
  */
-void get_IP(const char *name);
+char *get_IP(const char *name);
 
 /**
  * @brief 
@@ -46,4 +58,12 @@ int parse_arguments(char *arguments);
  */
 void print_parsed_url();
 
-void get_reply(int socket_fd, char *reply_code);
+static int get_reply(char *resp, int len, int socket_fd);
+
+int login(char* user,char* password, int socket_fd);
+
+int set_passive_mode(socket_fd);
+
+int send_retr(int socket_fd);
+
+int download(int socket_fd);
